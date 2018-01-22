@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 from time import sleep
+from urllib.request import HTTPError
 import urllib.request
 import re
 
@@ -40,6 +41,7 @@ class MyWebCrawler:
     def getSitemap2(self,url):
         fp = open("links2.txt","w")
         coda = []
+        all_links = []
         fp.write(url+"\n")
         coda.append(url)
 
@@ -48,19 +50,23 @@ class MyWebCrawler:
                 html_page = urllib.request.urlopen(coda[0])
                 soup = BeautifulSoup(html_page)
                 links = soup.findAll('a', attrs={'href': re.compile("^http://.*giallozafferano\.it")})
-                # root_index = index
 
                 for link in links:
                     text_link = link.get("href")
-                    if text_link not in coda:
+                    if text_link not in all_links:
+                        all_links.append(text_link)
                         coda.append(text_link)
                         fp.write(text_link + "\n")
                         print(text_link)
                 # Rimuovo dalla coda il link radice
                 del(coda[0])
 
-            except Exception:
-                print("Waiting...")
-                sleep(10)
+            except HTTPError as Error:
+                if Error.code == 404:
+                    del(coda[0])
+                    continue
+                if Error.code == 502:
+                    print("Waiting...")
+                    sleep(10)
 
 
