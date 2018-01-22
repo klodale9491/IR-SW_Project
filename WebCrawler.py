@@ -2,25 +2,24 @@ from bs4 import BeautifulSoup
 from time import sleep
 import urllib.request
 import re
-import os.path
 
 
 class MyWebCrawler:
     def __init__(self):
         self.to_visit = []
 
-    def extractWords(self):
+    def getIngredients(self):
         ingredients = []
         r = urllib.request.urlopen(self.url).read()
         soup = BeautifulSoup(r)
         htmlElements = soup.find_all("dd", class_="ingredient")
 
-        for i in range(0, len(htmlElements) - 1):
-            ingredients.append(htmlElements[i].a.get_text())
+        for el in  htmlElements:
+            ingredients.append(el.a.get_text())
 
         return ingredients
 
-    def exploreTree(self, url, to_vis, e, fp):
+    def getSitemap(self, url, e, fp):
         try:
             html_page = urllib.request.urlopen(url)
             soup = BeautifulSoup(html_page)
@@ -31,8 +30,37 @@ class MyWebCrawler:
                     self.to_visit.append(link.get("href"))
                     fp.write(link.get("href") + "\n")
                     print(link.get("href"))
-            self.exploreTree(self.to_visit[e], self.to_visit[e], e + 1, fp)
+            self.exploreTree(self.to_visit[e], e + 1, fp)
         except Exception:
-            print("Sono stato bloccato, sto in attesa 10 secondi....")
+            print("Waiting....")
             sleep(10)
-            self.exploreTree(self.to_visit[e], self.to_visit[e], e + 1, fp)
+            self.exploreTree(self.to_visit[e], e + 1, fp)
+
+
+    def getSitemap2(self,url):
+        fp = open("links2.txt","w")
+        coda = []
+        fp.write(url+"\n")
+        coda.append(url)
+
+        while len(coda) >= 1:
+            try:
+                html_page = urllib.request.urlopen(coda[0])
+                soup = BeautifulSoup(html_page)
+                links = soup.findAll('a', attrs={'href': re.compile("^http://.*giallozafferano\.it")})
+                # root_index = index
+
+                for link in links:
+                    text_link = link.get("href")
+                    if text_link not in coda:
+                        coda.append(text_link)
+                        fp.write(text_link + "\n")
+                        print(text_link)
+                # Rimuovo dalla coda il link radice
+                del(coda[0])
+
+            except Exception:
+                print("Waiting...")
+                sleep(10)
+
+
