@@ -56,17 +56,25 @@ class MyWebCrawler:
                     if text_link not in all_links:
                         all_links.append(text_link)
                         coda.append(text_link)
-                        fp.write(text_link + "\n")
+                        if re.match("^http://ricette\.giallozafferano\.it",text_link):
+                            fp.write(text_link + "\n")
                         print(text_link)
                 # Rimuovo dalla coda il link radice
                 del(coda[0])
+
 
             except HTTPError as Error:
                 if Error.code == 404:
                     del(coda[0])
                     continue
-                if Error.code == 502:
+                elif Error.code == 502:
                     print("Waiting...")
                     sleep(10)
+                else:
+                    raise(Exception)
+            except Exception:
+                del(coda[0])
+                continue
+
 
 
