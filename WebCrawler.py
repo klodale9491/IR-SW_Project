@@ -66,7 +66,7 @@ class MyWebCrawler:
                     del(coda[0])
                     continue
                 if Error.code == 502:
-                    print("Waiting...")
+                    print("Waiting....")
                     sleep(10)
 
 
