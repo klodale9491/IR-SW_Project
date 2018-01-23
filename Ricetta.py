@@ -2,6 +2,7 @@ import urllib.request
 from bs4 import BeautifulSoup
 
 
+
 class Ricetta:
     def __init__(self, url):
         self.content = BeautifulSoup(urllib.request.urlopen(url).read())
