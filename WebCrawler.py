@@ -37,7 +37,6 @@ class MyWebCrawler:
             sleep(10)
             self.exploreTree(self.to_visit[e], e + 1, fp)
 
-
     def getSitemap2(self,url):
         fp = open("links2.txt","w")
         coda = []
@@ -58,6 +57,8 @@ class MyWebCrawler:
                         coda.append(text_link)
                         if re.match("^http://ricette\.giallozafferano\.it",text_link):
                             fp.write(text_link + "\n")
+                        #if re.match("^http://ricette\.giallozafferano\.it.*/related/$",text_link):
+                            #fp.write(text_link + "\n")
                         print(text_link)
                 # Rimuovo dalla coda il link radice
                 del(coda[0])
