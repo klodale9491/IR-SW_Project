@@ -3,7 +3,10 @@ import urllib.request
 from time import sleep
 from urllib.request import HTTPError
 
+import mysql.connector
 from bs4 import BeautifulSoup
+
+from Ricetta import Ricetta
 
 
 class MyWebCrawler:
@@ -38,7 +41,7 @@ class MyWebCrawler:
                 if Error.code != 502:
                     del(coda[0])
                     continue
-                else :
+                else:
                     if count_attempt < max_attempts:
                         print("Waiting " + str(count_attempt * 10) + "seconds...\n")
                         sleep(count_attempt * 10)
@@ -48,3 +51,41 @@ class MyWebCrawler:
             except Exception:
                 del(coda[0])
                 continue
+
+    def loadDBRicette(self):
+        mysql_config = {
+            'user': 'root',
+            'password': 'root',
+            'host': '127.0.0.1',
+            'database': 'giallo_zafferano',
+            'raise_on_warnings': True,
+        }
+        try:
+            cnx = mysql.connector.connect(**mysql_config)
+            crs = cnx.cursor()
+            with open("link_ricette.txt","r") as fp:
+                for url in fp:
+                    print("Loading " + url + "\n")
+                    ric = Ricetta(url)
+                    # Aggiungo dati della ricetta
+                    add_ricetta = "INSERT INTO ricette(link,category,subcategory) VALUES(%s,%s,%s)"
+                    dati_ricetta = (url,ric.category,ric.subCategory)
+                    crs.execute(add_ricetta,dati_ricetta)
+                    ric_id = crs.lastrowid
+                    cnx.commit()
+                    # Aggiungo gli ingredienti della ricetta
+                    if ric.ingredients != None:
+                        for ing in ric.ingredients:
+                            add_ingrediente = "INSERT INTO ingredienti(nome) VALUES(%s)"
+                            dati_ingrediente = (ing,)
+                            crs.execute(add_ingrediente,dati_ingrediente)
+                            cnx.commit()
+                            ing_id = crs.lastrowid
+                            add_ingrediente_ricetta = "INSERT INTO ingredienti_ricette(id_ricetta,id_ingrediente) VALUES(%s,%s)"
+                            dati_ingrediente_ricetta = (ric_id,ing_id)
+                            crs.execute(add_ingrediente_ricetta, dati_ingrediente_ricetta)
+                            cnx.commit()
+        except mysql.connector.Error as Err:
+            print(Err.msg)
+
+        cnx.close()
