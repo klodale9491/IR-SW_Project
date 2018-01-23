@@ -39,7 +39,7 @@ class MyWebCrawler:
                     continue
                 else :
                     if count_attempt < max_attempts:
-                        print("Waiting " + str(count_attempt * 10) + "seconds")
+                        print("Waiting " + str(count_attempt * 10) + "seconds...\n")
                         sleep(count_attempt * 10)
                         count_attempt += 1
                     else:
