@@ -1,8 +1,9 @@
-from bs4 import BeautifulSoup
+import re
+import urllib.request
 from time import sleep
 from urllib.request import HTTPError
-import urllib.request
-import re
+
+from bs4 import BeautifulSoup
 
 
 class MyWebCrawler:
@@ -47,6 +48,3 @@ class MyWebCrawler:
             except Exception:
                 del(coda[0])
                 continue
-
-
-
