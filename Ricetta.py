@@ -22,11 +22,13 @@ class Ricetta:
         self.ingredients = list()
         ingredient_tags = self.content.find_all("dd", class_="ingredient")
         for tag in ingredient_tags:
+            tag = tag.find('a')
+            link = tag.attrs['href']
             ingredient = tag.text
             # Pulizia delle stringhe degli ingredienti
             #for ch in ['\n']:
             #   ingredient = ingredient.replace('','\t')
-            self.ingredients.append(ingredient)
+            self.ingredients.append((ingredient,link,))
 
     def setCategory(self):
         category_tag = self.content.find("a", class_="rkat")

@@ -55,37 +55,42 @@ class MyWebCrawler:
     def loadDBRicette(self):
         mysql_config = {
             'user': 'root',
-            'password': 'root',
+            'password': '',
             'host': '127.0.0.1',
             'database': 'giallo_zafferano',
             'raise_on_warnings': True,
         }
-        try:
-            cnx = mysql.connector.connect(**mysql_config)
-            crs = cnx.cursor()
-            with open("link_ricette.txt","r") as fp:
-                for url in fp:
-                    print("Loading " + url + "\n")
-                    ric = Ricetta(url)
-                    # Aggiungo dati della ricetta
-                    add_ricetta = "INSERT INTO ricette(link,category,subcategory) VALUES(%s,%s,%s)"
-                    dati_ricetta = (url,ric.category,ric.subCategory)
-                    crs.execute(add_ricetta,dati_ricetta)
-                    ric_id = crs.lastrowid
-                    cnx.commit()
-                    # Aggiungo gli ingredienti della ricetta
-                    if ric.ingredients != None:
-                        for ing in ric.ingredients:
-                            add_ingrediente = "INSERT INTO ingredienti(nome) VALUES(%s)"
-                            dati_ingrediente = (ing,)
-                            crs.execute(add_ingrediente,dati_ingrediente)
-                            cnx.commit()
-                            ing_id = crs.lastrowid
+        cnx = mysql.connector.connect(**mysql_config, buffered=True)
+        crs = cnx.cursor()
+        with open("link_ricette.txt","r") as fp:
+            for url in fp:
+                print("Loading " + url + "\n")
+                ric = Ricetta(url)
+                # Aggiungo dati della ricetta
+                add_ricetta = "INSERT INTO ricette(link,category,subcategory) VALUES(%s,%s,%s)"
+                dati_ricetta = (url,ric.category,ric.subCategory)
+                crs.execute(add_ricetta,dati_ricetta)
+                ric_id = crs.lastrowid
+                cnx.commit()
+                # Aggiungo gli ingredienti della ricetta
+                if ric.ingredients != None:
+                    for ing in ric.ingredients:
+                        try:
+                            crs.execute("select id from ingredienti where nome = %s and link = %s",ing)
+                            if crs._rowcount > 0:
+                                ing_id = crs.fetchone()[0]
+                            else:
+                                add_ingrediente = "INSERT INTO ingredienti(nome,link) VALUES(%s,%s)"
+                                dati_ingrediente = ing
+                                crs.execute(add_ingrediente,dati_ingrediente)
+                                cnx.commit()
+                                ing_id = crs.lastrowid
                             add_ingrediente_ricetta = "INSERT INTO ingredienti_ricette(id_ricetta,id_ingrediente) VALUES(%s,%s)"
                             dati_ingrediente_ricetta = (ric_id,ing_id)
                             crs.execute(add_ingrediente_ricetta, dati_ingrediente_ricetta)
                             cnx.commit()
-        except mysql.connector.Error as Err:
-            print(Err.msg)
+                        except mysql.connector.Error as Err:
+                            if Err.errno == 1062:
+                                continue
 
         cnx.close()
