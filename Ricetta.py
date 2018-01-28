@@ -54,6 +54,7 @@ class Ricetta:
             if node.name == 'p' and node.text != '':
                 phrases = node.text.split('.')
                 for phrase in phrases:
-                    prep.append(phrase)
+                    if phrase != '':
+                        prep.append(phrase)
             node = node.next_sibling
         self.prep = prep
