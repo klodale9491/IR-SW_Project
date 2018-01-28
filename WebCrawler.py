@@ -1,11 +1,9 @@
 import re
 import urllib.request
+import mysql.connector
 from time import sleep
 from urllib.request import HTTPError
-
-import mysql.connector
 from bs4 import BeautifulSoup
-
 from Ricetta import Ricetta
 
 
@@ -55,7 +53,7 @@ class MyWebCrawler:
     def loadDBRicette(self):
         mysql_config = {
             'user': 'root',
-            'password': '',
+            'password': 'root',
             'host': '127.0.0.1',
             'database': 'giallo_zafferano',
             'raise_on_warnings': True,
@@ -90,7 +88,25 @@ class MyWebCrawler:
                             crs.execute(add_ingrediente_ricetta, dati_ingrediente_ricetta)
                             cnx.commit()
                         except mysql.connector.Error as Err:
-                            if Err.errno == 1062:
+                            if Err.errno == 1062: # Violazione della chiave composta UNIQUE nome_link
                                 continue
-
+                            else:
+                                print(Err.msg)
+                                continue
+                # Aggiungo gli step di preparazione della ricetta
+                if ric.prep != None:
+                    len_step_prep = len(ric.prep)
+                    if len_step_prep > 0:
+                        tup_lst = list()
+                        query = "INSERT INTO preparazioni_ricette(id_ricetta,step,descrizione_step) VALUES(%s,%s,%s)"
+                        step = 0
+                        for index in range(0,len_step_prep-1):
+                            tup_lst.append((ric_id,step,ric.prep[index],))
+                            step += 1
+                        tup_lst.append((ric_id, step, ric.prep[step],))
+                        try:
+                            crs.executemany(query,tup_lst)
+                        except mysql.connector.Error as Err:
+                            print(Err.msg)
+                            continue
         cnx.close()
