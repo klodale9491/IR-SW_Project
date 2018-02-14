@@ -5,6 +5,7 @@ from time import sleep
 from urllib.request import HTTPError
 from bs4 import BeautifulSoup
 from Ricetta import Ricetta
+from DBConnector import DBConnector
 
 
 class MyWebCrawler:
@@ -51,14 +52,7 @@ class MyWebCrawler:
                 continue
 
     def loadDBRicette(self):
-        mysql_config = {
-            'user': 'root',
-            'password': 'root',
-            'host': '127.0.0.1',
-            'database': 'giallo_zafferano',
-            'raise_on_warnings': True,
-        }
-        cnx = mysql.connector.connect(**mysql_config, buffered=True)
+        cnx = DBConnector.connect('root', 'root', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
         with open("link_ricette.txt","r") as fp:
             for url in fp:

@@ -1,4 +1,5 @@
 from WebCrawler import MyWebCrawler
+from SimilarityCalculator import SimilarityCalculator
 
 '''
 r = Ricetta("http://ricette.giallozafferano.it/Fagottini-di-pasta-sfoglia-con-cuore-di-mela.html")
@@ -21,5 +22,6 @@ tags = tagger.tag_text(it_string)
 pprint(treetaggerwrapper.make_tags(tags))
 '''
 
-wc = MyWebCrawler()
-wc.loadDBRicette()
+'''wc = MyWebCrawler()
+wc.loadDBRicette()'''
+s = SimilarityCalculator()
