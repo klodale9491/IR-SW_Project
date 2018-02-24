@@ -7,53 +7,104 @@ from DBConnector import DBConnector
 class SimilarityCalculator:
     def __init__(self):
         self.setMatrix(self.calculateMatrix())
-        self.pmi()
-
-    def pmi(self):
         self.pmi_px()
         self.pmi_pxy()
-        num_ingr = len(self.matrix[0])
-        self.pmi_matrix = [[0 for x in range(num_ingr)] for y in range(num_ingr)]
-        for i in range(0,num_ingr):
-            for j in range(0,num_ingr):
-                t = math.log(self.pxy[i][j]) if self.pxy[i][j] != 0 else -inf
-                self.pmi_matrix[i][j] = t - math.log(self.px[i]) - math.log(self.px[j])
+        self.pmi()
+        self.sort_pmi()
+        self.pmi()
+        self.b_pmi()
+
+    def pmi(self):
+        print("pmi")
+        self.pmi_matrix = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
+        for i in range(0,self.num_ingr):
+            for j in range(0,self.num_ingr):
+                if self.pxy[i][j] > 0:
+                    self.pmi_matrix[i][j] = math.log(self.pxy[i][j] * self.m, 2) - math.log(self.px[i], 2) - math.log(self.px[j], 2)
+        print("DONE")
+
+    def b_pmi(self):
+        print("b_pmi")
+        self.bpmi = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
+        sigma = 6.5
+        eps = 3
+        for i in range(0, len(self.bpmi)):
+            bi = round(math.pow(math.log(self.px[i]),2) * math.log(self.num_ingr,2) / sigma) + 1
+            for j in range(0, i + 1):
+                bj = round(math.pow(math.log(self.px[j]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
+                sum_i = 0
+                for x in range(0, bi):
+                    if x >= self.num_ingr - 1:
+                        break
+                    sum_i = sum_i + math.pow(self.pmi_matrix[self.sort[i][x]][j], eps)
+                sum_j = 0
+                for y in range(0, bj):
+                    if y >= self.num_ingr - 1:
+                        break
+                    sum_j = sum_j + math.pow(self.pmi_matrix[self.sort[j][x]][i], eps)
+                self.bpmi[i][j] = sum_i / bi + sum_j / bj
+                self.bpmi[j][i] = self.bpmi[i][j]
+                #if bi == 1 or bj == 1:
+                #    print(i, j, bi, bj, self.px[i], self.px[j], self.bpmi[i][j])
+        print("DONE")
+
+    def sort_pmi(self):
+        print("sort_pmi")
+        self.sort = self.pmi_matrix
+        for i in range(0, len(self.pmi_matrix)):
+            self.sort[i] = sorted(range(len(self.pmi_matrix[i])), key=self.pmi_matrix[i].__getitem__, reverse=True)
+        print("DONE")
 
     def pmi_px(self):
-        num_ingr = len(self.matrix[0])
-        self.px = [0 for x in range(num_ingr)]
+        print("pmi_px")
+        self.px = [0 for x in range(self.num_ingr)]
         num_ricette = len(self.matrix)
-        for i in range(0, num_ingr):
+        for i in range(0, self.num_ingr):
             for j in range(0, num_ricette):
                 if self.matrix[j][i] == 1:
                     self.px[i] = self.px[i] + 1
-        for i in range(0, num_ingr):
-            self.px[i] = self.px[i] / num_ricette
+        print("DONE")
+        #for i in range(0, num_ingr):
+        #    self.px[i] = self.px[i] / num_ricette
 
     def pmi_pxy(self):
-        num_ingr = len(self.matrix[0])
-        num_ric = len(self.matrix)
-        self.pxy = [[0 for x in range(num_ingr)] for y in range(num_ingr)]
+        print("pmi_pxy")
+        self.pxy = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
+        cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
+        crs = cnx.cursor()
+        crs.execute("select distinct a.id_ricetta, a.id_ingrediente, b.id_ingrediente from ingredienti_ricette a, ingredienti_ricette b where a.id_ricetta = b.id_ricetta and a.id_ingrediente > b.id_ingrediente and a.id_ingrediente < 50")
+        row = crs.fetchone()
+        while row is not None:
+            self.pxy[row[1] - 1][row[2] - 1] = self.pxy[row[1] - 1][row[2] - 1] + 1
+            self.pxy[row[2] - 1][row[1] - 1] = self.pxy[row[2] - 1][row[1] - 1] + 1
+            row = crs.fetchone()
+        '''g = 0
         for i in range(0,len(self.pxy)):
             for j in range(0,i+1):
                 c = 0
-                for r in range(0,num_ric):
-                    if self.matrix[r][j] == 1 and self.matrix[r][i] == 1:
-                        c = c + 1
-                self.pxy[i][j] = c/len(self.matrix)
-                self.pxy[j][i] = self.pxy[i][j]
+                if i!=j:
+                    for r in range(0,self.num_ric):
+                        if self.matrix[r][j] == 1 and self.matrix[r][i] == 1:
+                            c = c + 1
+                            g = g + 1
+                self.pxy[i][j] = c
+                self.pxy[j][i] = c
+        print(g)'''
+        print("DONE")
 
     def calculateMatrix(self):
-        cnx = DBConnector().connect('root', 'gzhzvzx', '127.0.0.1', 'giallo_zafferano')
+        cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
-        crs.execute("select count(*) as c from ingredienti")
-        count_ingr = crs.fetchone()[0]
-        count_ingr = 49
+        crs.execute("select count(*) as c from ingredienti where id < 50")
+        self.num_ingr = crs.fetchone()[0]
+        #count_ingr = 49
         crs.execute("select count(*) as c from ricette")
         #crs.execute("select count(distinct id_ricetta) from ingredienti_ricette where id_ingrediente < 50")
-        count_ric = crs.fetchone()[0]
+        self.num_ric = crs.fetchone()[0]
+        #crs.execute("select * from ingredienti_ricette where id_ingrediente < 50")
         crs.execute("select * from ingredienti_ricette where id_ingrediente < 50")
-        matrix = [[0 for x in range(count_ingr)] for y in range(count_ric)]
+        self.m = crs.rowcount
+        matrix = [[0 for x in range(self.num_ingr)] for y in range(self.num_ric)]
         row = crs.fetchone()
         l = list()
         while row is not None:
