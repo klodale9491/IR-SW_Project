@@ -95,14 +95,14 @@ class SimilarityCalculator:
     def calculateMatrix(self):
         cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
-        crs.execute("select count(*) as c from ingredienti where id < 50")
+        crs.execute("select count(*) as c from ingredienti")
         self.num_ingr = crs.fetchone()[0]
         #count_ingr = 49
         crs.execute("select count(*) as c from ricette")
         #crs.execute("select count(distinct id_ricetta) from ingredienti_ricette where id_ingrediente < 50")
         self.num_ric = crs.fetchone()[0]
         #crs.execute("select * from ingredienti_ricette where id_ingrediente < 50")
-        crs.execute("select * from ingredienti_ricette where id_ingrediente < 50")
+        crs.execute("select * from ingredienti_ricette")
         self.m = crs.rowcount
         matrix = [[0 for x in range(self.num_ingr)] for y in range(self.num_ric)]
         row = crs.fetchone()
