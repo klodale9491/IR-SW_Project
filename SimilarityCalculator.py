@@ -1,5 +1,7 @@
 import math
-from numpy import inf
+
+from sklearn.decomposition import TruncatedSVD
+from scipy.spatial.distance import cosine as cosine_distance
 
 from DBConnector import DBConnector
 
@@ -13,6 +15,7 @@ class SimilarityCalculator:
         self.sort_pmi()
         self.pmi()
         self.b_pmi()
+        # self.cosine_distance()
 
     def pmi(self):
         print("pmi")
@@ -70,7 +73,7 @@ class SimilarityCalculator:
     def pmi_pxy(self):
         print("pmi_pxy")
         self.pxy = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
-        cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
+        cnx = DBConnector().connect('root', 'root', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
         crs.execute("select distinct a.id_ricetta, a.id_ingrediente, b.id_ingrediente from ingredienti_ricette a, ingredienti_ricette b where a.id_ricetta = b.id_ricetta and a.id_ingrediente > b.id_ingrediente and a.id_ingrediente < 50")
         row = crs.fetchone()
@@ -93,7 +96,7 @@ class SimilarityCalculator:
         print("DONE")
 
     def calculateMatrix(self):
-        cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
+        cnx = DBConnector().connect('root', 'root', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
         crs.execute("select count(*) as c from ingredienti")
         self.num_ingr = crs.fetchone()[0]
@@ -106,14 +109,28 @@ class SimilarityCalculator:
         self.m = crs.rowcount
         matrix = [[0 for x in range(self.num_ingr)] for y in range(self.num_ric)]
         row = crs.fetchone()
-        l = list()
+        self.l = list()
         while row is not None:
-            if row[1] not in l:
-                l.append(row[1])
-                r = len(l)-1
+            if row[1] not in self.l:
+                self.l.append(row[1])
+                r = len(self.l)-1
             matrix[r][row[2]-1] = 1
             row = crs.fetchone()
         return matrix
+
+    # Calculate TSVD Matrix Decomposition
+    def cosine_distance(self,comp):
+        print('cosine_distance')
+        self.svd = TruncatedSVD(n_components=comp, n_iter=7, random_state=42).fit_transform(self.matrix)
+        self.cosine_matrix = [[0 for x in range(self.num_ric)] for y in range(self.num_ric)]
+        #self.svd = self.matrix
+        for i in range(0,len(self.svd)):
+            for j in range(i+1,len(self.svd)):
+                cosine = cosine_distance(self.svd[i],self.svd[j])
+                self.cosine_matrix[i][j] = cosine
+                self.cosine_matrix[j][i] = cosine
+        print("DONE")
+
 
     def getMatrix(self):
         return self.matrix
