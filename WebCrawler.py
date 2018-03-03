@@ -52,7 +52,7 @@ class MyWebCrawler:
                 continue
 
     def loadDBRicette(self):
-        cnx = DBConnector.connect('root', 'root', '127.0.0.1', 'giallo_zafferano')
+        cnx = DBConnector.connect('root', '', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
         with open("link_ricette.txt","r") as fp:
             for url in fp:
