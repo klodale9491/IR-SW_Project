@@ -1,6 +1,5 @@
 import mysql.connector
 
-
 class DBConnector:
     @staticmethod
     def connect(user, pwd, host, db):

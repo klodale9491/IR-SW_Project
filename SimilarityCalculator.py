@@ -17,8 +17,10 @@ class SimilarityCalculator:
         self.sort_npmi()
         self.pmi()
         self.b_pmi()
+        self.sort_bpmi()
+        self.b_pmi()
         #self.b_npmi()
-        # self.cosine_distance()
+        #self.cosine_distance()
 
     def pmi(self):
         print("pmi")
@@ -31,7 +33,7 @@ class SimilarityCalculator:
                     self.npmi[i][j] = math.log(self.px[i] * self.px[j] / pow(self.num_ric,2)) / math.log(self.pxy[i][j] / self.num_ric) - 1
                 else:
                     self.npmi[i][j] = -1
-                    self.pmi_matrix[i][j] = -10
+                    #self.pmi_matrix[i][j] = -10
         print("DONE")
 
     def b_pmi(self):
@@ -40,21 +42,21 @@ class SimilarityCalculator:
         sigma = 6.5
         eps = 3
         for i in range(0, len(self.bpmi)):
-            bi = round(math.pow(math.log(self.px[i])) * math.log(self.num_ingr,2) / sigma) + 1
-            for j in range(0, i + 1):
-                bj = round(math.pow(math.log(self.px[j])) * math.log(self.num_ingr, 2) / sigma) + 1
+            bi = round(math.pow(math.log(self.px[i]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
+            for j in range(0, i):
+                bj = round(math.pow(math.log(self.px[j]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
                 sum_i = 0
                 for x in range(0, bi):
                     if x >= self.num_ingr - 1:
                         break
-                    #if self.pmi_matrix[self.sort[i][x]][i] > 0 and self.pmi_matrix[self.sort[i][x]][j] > 0:
-                    sum_i = sum_i + math.pow(self.pmi_matrix[self.sort[i][x]][j], eps)
+                    if self.pmi_matrix[self.sort[i][x]][i] > 0 and self.pmi_matrix[self.sort[i][x]][j] > 0:
+                        sum_i = sum_i + math.pow(self.pmi_matrix[self.sort[i][x]][j], eps)
                 sum_j = 0
                 for y in range(0, bj):
                     if y >= self.num_ingr - 1:
                         break
-                    #if self.pmi_matrix[self.sort[j][y]][i] > 0 and self.pmi_matrix[self.sort[j][y]][j] > 0:
-                    sum_j = sum_j + math.pow(self.pmi_matrix[self.sort[j][y]][i], eps)
+                    if self.pmi_matrix[self.sort[j][y]][i] > 0 and self.pmi_matrix[self.sort[j][y]][j] > 0:
+                        sum_j = sum_j + math.pow(self.pmi_matrix[self.sort[j][y]][i], eps)
                 self.bpmi[i][j] = sum_i / bi + sum_j / bj
                 self.bpmi[j][i] = self.bpmi[i][j]
                 #if bi == 1 or bj == 1:
@@ -66,6 +68,13 @@ class SimilarityCalculator:
         self.sort = self.pmi_matrix
         for i in range(0, len(self.pmi_matrix)):
             self.sort[i] = argsort(self.pmi_matrix[i])[::-1]
+        print("DONE")
+
+    def sort_bpmi(self):
+        print("sort_pmi")
+        self.bsort = self.bpmi
+        for i in range(0, len(self.bpmi)):
+            self.bsort[i] = argsort(self.bpmi[i])[::-1]
         print("DONE")
 
     def sort_npmi(self):
@@ -92,7 +101,7 @@ class SimilarityCalculator:
         self.pxy = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
         cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
         crs = cnx.cursor()
-        crs.execute("select distinct a.id_ricetta, a.id_ingrediente, b.id_ingrediente from ingredienti_ricette a, ingredienti_ricette b where a.id_ricetta = b.id_ricetta and a.id_ingrediente > b.id_ingrediente and a.id_ingrediente < 50")
+        crs.execute("select distinct a.id_ricetta, a.id_ingrediente, b.id_ingrediente from ingredienti_ricette a, ingredienti_ricette b where a.id_ricetta = b.id_ricetta and a.id_ingrediente > b.id_ingrediente")
         row = crs.fetchone()
         while row is not None:
             self.pxy[row[1] - 1][row[2] - 1] = self.pxy[row[1] - 1][row[2] - 1] + 1
