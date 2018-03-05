@@ -2,12 +2,12 @@ import mysql.connector
 
 class DBConnector:
     @staticmethod
-    def connect(user, pwd, host, db):
+    def connect():
         mysql_config = {
-            'user': user,
-            'password': pwd,
-            'host': host,
-            'database': db,
+            'user': 'root',
+            'password': '',
+            'host': '127.0.0.1',
+            'database': 'giallo_zafferano',
             'raise_on_warnings': True,
         }
         cnx = mysql.connector.connect(**mysql_config, buffered=True)

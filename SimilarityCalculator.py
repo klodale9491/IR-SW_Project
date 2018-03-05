@@ -99,7 +99,7 @@ class SimilarityCalculator:
     def pmi_pxy(self):
         print("pmi_pxy")
         self.pxy = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
-        cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
+        cnx = DBConnector().connect()
         crs = cnx.cursor()
         crs.execute("select distinct a.id_ricetta, a.id_ingrediente, b.id_ingrediente from ingredienti_ricette a, ingredienti_ricette b where a.id_ricetta = b.id_ricetta and a.id_ingrediente > b.id_ingrediente")
         row = crs.fetchone()
@@ -122,7 +122,7 @@ class SimilarityCalculator:
         print("DONE")
 
     def calculateMatrix(self):
-        cnx = DBConnector().connect('root', '', '127.0.0.1', 'giallo_zafferano')
+        cnx = DBConnector().connect()
         crs = cnx.cursor()
         crs.execute("select count(*) as c from ingredienti")
         self.num_ingr = crs.fetchone()[0]
