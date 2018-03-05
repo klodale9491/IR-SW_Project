@@ -107,18 +107,6 @@ class SimilarityCalculator:
             self.pxy[row[1] - 1][row[2] - 1] = self.pxy[row[1] - 1][row[2] - 1] + 1
             self.pxy[row[2] - 1][row[1] - 1] = self.pxy[row[2] - 1][row[1] - 1] + 1
             row = crs.fetchone()
-        '''g = 0
-        for i in range(0,len(self.pxy)):
-            for j in range(0,i+1):
-                c = 0
-                if i!=j:
-                    for r in range(0,self.num_ric):
-                        if self.matrix[r][j] == 1 and self.matrix[r][i] == 1:
-                            c = c + 1
-                            g = g + 1
-                self.pxy[i][j] = c
-                self.pxy[j][i] = c
-        print(g)'''
         print("DONE")
 
     def calculateMatrix(self):
@@ -146,9 +134,12 @@ class SimilarityCalculator:
         return matrix
 
     # Calculate TSVD Matrix Decomposition
-    def cosine_distance(self,comp):
+    def cosine_distance(self, comp=None):
         print('cosine_distance')
-        self.svd = TruncatedSVD(n_components=comp, n_iter=7, random_state=42).fit_transform(self.matrix)
+        if comp is None:
+            self.svd = self.matrix
+        else:
+            self.svd = TruncatedSVD(n_components=comp, n_iter=7, random_state=42).fit_transform(self.matrix)
         self.cosine_matrix = [[0 for x in range(self.num_ric)] for y in range(self.num_ric)]
         #self.svd = self.matrix
         for i in range(0,len(self.svd)):
