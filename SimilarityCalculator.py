@@ -9,7 +9,7 @@ from DBConnector import DBConnector
 
 class SimilarityCalculator:
     def __init__(self):
-        self.setMatrix(self.calculateMatrix())
+        self.calculateMatrix()
         self.pmi_px()
         self.pmi_pxy()
         self.pmi()
@@ -131,7 +131,7 @@ class SimilarityCalculator:
             matrix[r][row[2]-1] = 1
             self.i[row[2]-1] = row[3]
             row = crs.fetchone()
-        return matrix
+        self.matrix = matrix
 
     # Calculate TSVD Matrix Decomposition
     def cosine_distance(self, comp=None):
@@ -148,10 +148,3 @@ class SimilarityCalculator:
                 self.cosine_matrix[i][j] = cosine
                 self.cosine_matrix[j][i] = cosine
         print("DONE")
-
-
-    def getMatrix(self):
-        return self.matrix
-
-    def setMatrix(self, matrix):
-        self.matrix = matrix
