@@ -43,22 +43,26 @@ class SimilarityCalculator:
         eps = 3
         for i in range(0, len(self.bpmi)):
             bi = round(math.pow(math.log(self.px[i]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
-            for j in range(0, i):
+            for j in range(0, i + 1):
                 bj = round(math.pow(math.log(self.px[j]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
                 sum_i = 0
                 for x in range(0, bi):
                     if x >= self.num_ingr - 1:
                         break
-                    if self.pmi_matrix[self.sort[i][x]][i] > 0 and self.pmi_matrix[self.sort[i][x]][j] > 0:
+                    if self.pmi_matrix[self.sort[i][x]][i] > 0 and self.pmi_matrix[self.sort[i][x]][j] > 0 and self.sort[i][x] in  self.sort[j][0:bj]:
                         sum_i = sum_i + math.pow(self.pmi_matrix[self.sort[i][x]][j], eps)
                 sum_j = 0
                 for y in range(0, bj):
                     if y >= self.num_ingr - 1:
                         break
-                    if self.pmi_matrix[self.sort[j][y]][i] > 0 and self.pmi_matrix[self.sort[j][y]][j] > 0:
+                    if self.pmi_matrix[self.sort[j][y]][i] > 0 and self.pmi_matrix[self.sort[j][y]][j] > 0 and self.sort[j][y] in  self.sort[i][0:bi]:
                         sum_j = sum_j + math.pow(self.pmi_matrix[self.sort[j][y]][i], eps)
-                self.bpmi[i][j] = sum_i / bi + sum_j / bj
-                self.bpmi[j][i] = self.bpmi[i][j]
+                if i in self.sort[j][0:bj] or j in self.sort[i][0:bi]:
+                    self.bpmi[i][j] = 0
+                    self.bpmi[j][i] = 0
+                else:
+                    self.bpmi[i][j] = sum_i / bi + sum_j / bj
+                    self.bpmi[j][i] = self.bpmi[i][j]
                 #if bi == 1 or bj == 1:
                 #    print(i, j, bi, bj, self.px[i], self.px[j], self.bpmi[i][j])
         print("DONE")
