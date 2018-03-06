@@ -1,4 +1,6 @@
 import math
+import json
+import unicodedata
 
 from sklearn.decomposition import TruncatedSVD
 from scipy.spatial.distance import cosine as cosine_distance
@@ -9,7 +11,8 @@ from DBConnector import DBConnector
 
 class SimilarityCalculator:
     def __init__(self):
-        self.calculateMatrix()
+        #self.calculateMatrix()
+        self.get_matrix_json()
         self.pmi_px()
         self.pmi_pxy()
         self.pmi()
@@ -136,6 +139,42 @@ class SimilarityCalculator:
             self.i[row[2]-1] = row[3]
             row = crs.fetchone()
         self.matrix = matrix
+
+    def get_matrix_json(filename):
+        # Covert unicode format file
+        def conv_unicode(data):
+            return unicodedata.normalize('NFKD', data).encode('ascii', 'ignore')
+
+        # Load data from file
+        f = open(filename, "r")
+        data = f.read()
+        jsondata = json.loads(data)
+
+        # Convert dataset unicode to string
+        recipes = []
+        ingredients = []
+        index = 0
+        for urec in jsondata:
+            singredients = []
+            for uing in urec['ingredients']:
+                sing = conv_unicode(uing)
+                singredients.append(sing)
+                if sing not in ingredients:
+                    ingredients.append(sing)
+            recipes.append([index, singredients])
+            index += 1
+
+        # Get Occurrence Matrix
+        num_rec = len(recipes)
+        num_ingr = len(ingredients)
+        matrix = [[0 for x in range(num_ingr)] for y in range(num_rec)]
+        for ric in recipes:
+            id_rec = ric[0]
+            for ing in ric[1]:
+                id_ingr = ingredients.index(ing)
+                matrix[id_rec][id_ingr] = 1
+
+        return matrix
 
     # Calculate TSVD Matrix Decomposition
     def cosine_distance(self, comp=None):
