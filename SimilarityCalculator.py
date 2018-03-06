@@ -152,3 +152,4 @@ class SimilarityCalculator:
                 self.cosine_matrix[i][j] = cosine
                 self.cosine_matrix[j][i] = cosine
         print("DONE")
+
