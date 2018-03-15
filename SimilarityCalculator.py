@@ -42,28 +42,22 @@ class SimilarityCalculator:
         px = multiprocessing.Array("d",self.num_ingr)
         self.px = numpy.frombuffer(px.get_obj(),numpy.dtype(int))
         del(px)
-
         pxy = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.pxy = numpy.frombuffer(pxy.get_obj(),numpy.dtype(int)).reshape(self.num_ingr,self.num_ingr)
         del(pxy)
-
         pmi_matrix = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.pmi_matrix = numpy.frombuffer(pmi_matrix.get_obj(),numpy.dtype(int)).reshape(self.num_ingr,self.num_ingr)
         del (pmi_matrix)
-
         sort = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.sort = numpy.frombuffer(sort.get_obj(),numpy.dtype(int)).reshape(self.num_ingr,self.num_ingr)
         del(sort)
-
         # self.npmi = [[0 for x in range(self.num_ingr)] for y in range(self.num_ingr)]
         bpmi = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.bpmi = numpy.frombuffer(bpmi.get_obj(),numpy.dtype(float)).reshape(self.num_ingr,self.num_ingr)
         del(bpmi)
-
         bsort = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.bsort = numpy.frombuffer(bsort.get_obj(),numpy.dtype(float)).reshape(self.num_ingr, self.num_ingr)
         del(bsort)
-
         print("DONE")
 
     # Parallelize operations
@@ -155,7 +149,6 @@ class SimilarityCalculator:
             self.pxy[row[2] - 1][row[1] - 1] = self.pxy[row[2] - 1][row[1] - 1] + 1
             row = crs.fetchone()
 
-
     # Calculate P(x,y) in memory
     def pmi_pxy_2(self,tid):
         start = tid
@@ -166,7 +159,6 @@ class SimilarityCalculator:
                          if self.matrix[i][k] == 1:
                              self.pxy[j][k] += 1
                              self.pxy[k][j] += 1
-
 
     # Calculate PMI(x,y) = log (P(x,y)/P(x)*P(y))
     def pmi(self,tid):
@@ -181,7 +173,7 @@ class SimilarityCalculator:
                     # self.npmi[i][j] = -1
                     # self.pmi_matrix[i][j] = -10
 
-
+    # Calculate second order PMI
     def b_pmi(self,tid):
         print(self.num_ingr)
         sigma = 6.5
@@ -232,20 +224,17 @@ class SimilarityCalculator:
         for i in range(start, len(self.pmi_matrix),self.num_proc):
             self.sort[i] = argsort(self.pmi_matrix[i])[::-1]
 
-
     def sort_bpmi(self,tid):
         start = tid
         # self.bsort = self.bpmi
         for i in range(start, len(self.bpmi), self.num_proc):
             self.bsort[i] = argsort(self.bpmi[i])[::-1]
 
-
     def sort_npmi(self,tid):
         start = tid
         self.nsort = self.npmi
         for i in range(start, len(self.npmi),self.num_proc):
             self.nsort[i] = argsort(self.npmi[i])[::-1]
-
 
     # Calculate cosine distance truncating occurrence matrix using TSVD decomposition
     def cosine_distance(self, comp=None):
@@ -305,7 +294,6 @@ class SimilarityCalculator:
                     self.ingredients.append(uing)
             self.recipes.append([index, singredients])
             index += 1
-
         # Get Occurrence Matrix
         self.num_ric = len(self.recipes)
         self.num_ingr = len(self.ingredients)
@@ -316,17 +304,4 @@ class SimilarityCalculator:
                 id_ingr = self.ingredients.index(ing)
                 self.matrix[id_rec][id_ingr] = 1
         print("DONE")
-
-    def store_ric_sql(self):
-        cnx = DBConnector().connect(db="recipes_irsw")
-        crs = cnx.cursor()
-        for i in range(self.num_ric):
-            # Ricetta
-            crs.execute("INSERT INTO ricette(id_ric) VALUES(%s)",(i+1,))
-            for j in range(self.num_ingr):
-                if self.matrix[i][j] == 1:
-                    crs.execute("INSERT INTO ingredienti_ricette(id_ricetta,id_ingrediente) VALUES(%s,%s)",(i+1,j+1))
-        for k in range(len(self.ingredients)):
-            crs.execute("INSERT INTO ingredienti(id_ing,nome) VALUES(%s,%s)",(k+1,self.ingredients[k]))
-        cnx.commit()
 
