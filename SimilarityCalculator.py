@@ -58,6 +58,8 @@ class SimilarityCalculator:
         bsort = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.bsort = numpy.frombuffer(bsort.get_obj(),numpy.dtype(float)).reshape(self.num_ingr, self.num_ingr)
         del(bsort)
+        # Lut bpmi
+        self.b = multiprocessing.Array("i",self.num_ingr)
         print("DONE")
 
     # Parallelize operations
@@ -126,6 +128,10 @@ class SimilarityCalculator:
             my_procs[i].start()
         for j in range(self.num_proc):
             my_procs[i].join()
+        # save_sql results
+        del(self.matrix)
+        del(self.pmi_matrix)
+        self.save_sql()
         print("DONE")
 
     # Calculate P(x),P(y)
@@ -181,10 +187,9 @@ class SimilarityCalculator:
         start = tid
 
         # LUT to speedup computing
-        b = [0 for x in range(self.num_ingr)]
         try:
-            for i in range(start,self.num_ingr,self.num_proc):
-                b[i] = round(math.pow(math.log(self.px[i]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
+            for i in range(0, self.num_ingr):
+                self.b[i] = round(math.pow(math.log(self.px[i]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
         except ValueError:
             print(self.px)
 
@@ -196,24 +201,22 @@ class SimilarityCalculator:
                     print(i,j)
                 # bj = round(math.pow(math.log(self.px[j]), 2) * math.log(self.num_ingr, 2) / sigma) + 1
                 sum_i = 0
-                for x in range(0, b[i]):
+                for x in range(0, self.b[i]):
                     if x >= self.num_ingr - 1:
                         break
-                    print(i,x,j,int(self.sort[i][x]),self.sort[j][0:b[j]])
-                    if self.pmi_matrix[int(self.sort[i][x])][i] > 0 and self.pmi_matrix[self.sort[i][x]][j] > 0 and self.sort[i][x] in  self.sort[j][0:b[j]]:
+                    if self.pmi_matrix[self.sort[i][x]][i] > 0 and self.pmi_matrix[self.sort[i][x]][j] > 0 and self.sort[i][x] in  self.sort[j][0:self.b[j]]:
                         sum_i = sum_i + math.pow(self.pmi_matrix[self.sort[i][x]][j], eps)
                 sum_j = 0
-                for y in range(0, b[j]):
+                for y in range(0, self.b[j]):
                     if y >= self.num_ingr - 1:
                         break
-                    print(i,y,j)
-                    if self.pmi_matrix[self.sort[j][y]][i] > 0 and self.pmi_matrix[self.sort[j][y]][j] > 0 and self.sort[j][y] in  self.sort[i][0:b[i]]:
-                        sum_j = sum_j + math.pow(self.pmi_matrix[int(self.sort[j][y])][i], eps)
-                if float(i) in self.sort[j][0:b[j]] or j in self.sort[i][0:b[i]]:
+                    if self.pmi_matrix[self.sort[j][y]][i] > 0 and self.pmi_matrix[self.sort[j][y]][j] > 0 and self.sort[j][y] in  self.sort[i][0:self.b[i]]:
+                        sum_j = sum_j + math.pow(self.pmi_matrix[self.sort[j][y]][i], eps)
+                if i in self.sort[j][0:self.b[j]] or j in self.sort[i][0:self.b[i]]:
                     self.bpmi[i][j] = 0
                     self.bpmi[j][i] = 0
                 else:
-                    self.bpmi[i][j] = sum_i / b[i] + sum_j / b[j]
+                    self.bpmi[i][j] = sum_i / self.b[i] + sum_j / self.b[j]
                     self.bpmi[j][i] = self.bpmi[i][j]
                 #if bi == 1 or bj == 1:
                 #    print(i, j, bi, bj, self.px[i], self.px[j], self.bpmi[i][j])
@@ -305,3 +308,16 @@ class SimilarityCalculator:
                 self.matrix[id_rec][id_ingr] = 1
         print("DONE")
 
+    def save_sql(self):
+        count = 0;
+        cnx = DBConnector().connect()
+        crs = cnx.cursor()
+        for i in range(0, len(self.bpmi)):
+            for j in range(0, i+1):
+                crs.execute("insert into bpmi values(%s,%s,%s)",(i+1,j+1,float(self.bpmi[i][j])))
+                count = count + 1
+                if count == 1000:
+                    cnx.commit()
+                    count = 0
+        if count != 0:
+            cnx.commit()
