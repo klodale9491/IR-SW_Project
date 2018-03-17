@@ -38,6 +38,8 @@ class SimilarityCalculator:
         self.num_ingr = crs.fetchone()[0]
         crs.execute("select count(*) as c from ricette")
         self.num_ric = crs.fetchone()[0]
+        crs.execute("select count(distinct category) from ricette")
+        self.num_cat = crs.fetchone()[0]
 
     # Allocate shared memory for operations
     def mem_alloc(self):
@@ -48,6 +50,7 @@ class SimilarityCalculator:
         self.sort = multiprocessing.Array("i",self.num_ingr*self.num_ingr)
         self.bpmi = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.bsort = multiprocessing.Array("i",self.num_ingr*self.num_ingr)
+        self.cat = multiprocessing.Array("d", self.num_ingr * self.num_cat)
         # Lut bpmi
         self.b = multiprocessing.Array("i",self.num_ingr)
         print("DONE")
@@ -59,6 +62,15 @@ class SimilarityCalculator:
         print("pmi_px")
         for i in range(self.num_proc):
             my_procs[i] = multiprocessing.Process(target=self.pmi_px, args=(i,self.px))
+            my_procs[i].start()
+            time.sleep(0.1)
+        for j in range(self.num_proc):
+            my_procs[i].join()
+        print("DONE")
+        # Categories
+        print("cat")
+        for i in range(self.num_proc):
+            my_procs[i] = multiprocessing.Process(target=self.pcat, args=(i, self.cat))
             my_procs[i].start()
             time.sleep(0.1)
         for j in range(self.num_proc):
@@ -103,7 +115,7 @@ class SimilarityCalculator:
         # Parallelize b_pmi
         print("bpmi")
         for i in range(self.num_proc):
-            my_procs[i] = multiprocessing.Process(target=self.b_pmi, args=(i,self.b,self.px,self.pmi_matrix,self.sort,self.bpmi))
+            my_procs[i] = multiprocessing.Process(target=self.b_pmi, args=(i,self.b,self.px,self.pmi_matrix,self.sort,self.bpmi, self.cat))
             my_procs[i].start()
             time.sleep(0.1)
         for j in range(self.num_proc):
@@ -121,7 +133,7 @@ class SimilarityCalculator:
         # Parallelize b_pmi
         print("bpmi")
         for i in range(self.num_proc):
-            my_procs[i] = multiprocessing.Process(target=self.b_pmi,args=(i, self.b, self.px, self.pmi_matrix, self.sort, self.bpmi))
+            my_procs[i] = multiprocessing.Process(target=self.b_pmi,args=(i, self.b, self.px, self.pmi_matrix, self.sort, self.bpmi, self.cat))
             my_procs[i].start()
             time.sleep(0.1)
         for j in range(self.num_proc):
@@ -137,6 +149,27 @@ class SimilarityCalculator:
             for j in range(0, num_ricette):
                 if self.matrix[j][i] == 1:
                     px[i] += 1
+
+    # PCat
+    def pcat(self, tid, cat):
+        start = tid
+        self.cat = numpy.frombuffer(cat.get_obj(), numpy.dtype(float)).reshape(self.num_ingr, self.num_cat)
+        cnx = DBConnector().connect()
+        crs = cnx.cursor()
+        crs.execute("select distinct category from ricette where category is not null")
+        rs = crs.fetchall()
+        dic = {}
+        for i in range(0, len(rs)):
+            dic[rs[i][0]] = i
+
+        for i in range(start, self.num_ingr, self.num_proc):
+            crs.execute("select category, count(ricette.category) from ingredienti_ricette, ricette where ingredienti_ricette.id_ricetta = ricette.id and ingredienti_ricette.id_ingrediente = %s group by ricette.category", (i+1,))
+            rs = crs.fetchall()
+            for category in rs:
+                if category[0] is None:
+                    continue
+                cat_index = dic[category[0]]
+                self.cat[i][cat_index] = category[1] / self.px[i]
 
     # Calculate P(x,y) using database
     def pmi_pxy(self):
@@ -181,7 +214,7 @@ class SimilarityCalculator:
                     # self.pmi_matrix[i][j] = -10
 
     # Calculate second order PMI
-    def b_pmi(self,tid,b,px,pmi_matrix,sort,bpmi):
+    def b_pmi(self,tid,b,px,pmi_matrix,sort,bpmi,cat):
         sigma = 6.5
         eps = 3
 
@@ -191,6 +224,7 @@ class SimilarityCalculator:
         pmi_matrix = numpy.frombuffer(pmi_matrix.get_obj(), numpy.dtype(float)).reshape(self.num_ingr, self.num_ingr)
         sort = numpy.frombuffer(sort.get_obj(), numpy.int32).reshape(self.num_ingr,self.num_ingr)
         bpmi = numpy.frombuffer(bpmi.get_obj(), numpy.dtype(float)).reshape(self.num_ingr, self.num_ingr)
+        cat = numpy.frombuffer(cat.get_obj(), numpy.dtype(float)).reshape(self.num_ingr, self.num_cat)
 
         # LUT to speedup computing
         for i in range(0, self.num_ingr):
@@ -207,18 +241,18 @@ class SimilarityCalculator:
                     if x >= self.num_ingr - 1:
                         break
                     if pmi_matrix[sort[i][x]][i] > 0 and pmi_matrix[sort[i][x]][j] > 0 and sort[i][x] in sort[j][0:b[j]]:
-                        sum_i = sum_i + math.pow(pmi_matrix[sort[i][x]][j], eps)
+                        sum_i += math.pow(pmi_matrix[sort[i][x]][j], eps) * (1 - cosine_distance(cat[j], cat[sort[i][x]]))
                 sum_j = 0
                 for y in range(0, b[j]):
                     if y >= self.num_ingr - 1:
                         break
                     if pmi_matrix[sort[j][y]][i] > 0 and pmi_matrix[sort[j][y]][j] > 0 and sort[j][y] in sort[i][0:b[i]]:
-                        sum_j = sum_j + math.pow(pmi_matrix[sort[j][y]][i], eps)
+                        sum_j += math.pow(pmi_matrix[sort[j][y]][i], eps) * (1 - cosine_distance(cat[i], cat[sort[j][y]]))
                 if i in sort[j][0:b[j]] or j in sort[i][0:b[i]]:
                     bpmi[i][j] = 0
                     bpmi[j][i] = 0
                 else:
-                    bpmi[i][j] = sum_i / b[i] + sum_j / b[j]
+                    bpmi[i][j] = (sum_i / b[i] + sum_j / b[j])
                     bpmi[j][i] = bpmi[i][j]
 
     def sort_pmi(self,tid,sort,pmi_matrix):
@@ -259,14 +293,13 @@ class SimilarityCalculator:
 
     def calculate_matrix_sql(self):
         print("calculate_matrix_sql")
+        matrix = multiprocessing.Array("d", self.num_ingr * self.num_ric)
+        self.matrix = numpy.frombuffer(matrix.get_obj()).reshape(self.num_ric, self.num_ingr)
         cnx = DBConnector().connect()
         crs = cnx.cursor()
         #crs.execute("select ingredienti_ricette.id, ingredienti_ricette.id_ricetta, ingredienti_ricette.id_ingrediente, ingredienti.nome from ingredienti_ricette, ingredienti where ingredienti.id_ing = ingredienti_ricette.id_ingrediente order by ingredienti_ricette.id_ricetta")
         crs.execute("select ingredienti_ricette.id, ingredienti_ricette.id_ricetta, ingredienti_ricette.id_ingrediente, ingredienti.nome from ingredienti_ricette, ingredienti where ingredienti.id = ingredienti_ricette.id_ingrediente order by ingredienti_ricette.id_ricetta")
         self.m = crs.rowcount
-        matrix = multiprocessing.Array("d",self.num_ingr*self.num_ric)
-        self.matrix = numpy.frombuffer(matrix.get_obj()).reshape(self.num_ric,self.num_ingr)
-        del(matrix)
         row = crs.fetchone()
         self.l = list()
         self.i = [0 for x in range(self.num_ingr)]
