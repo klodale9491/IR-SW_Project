@@ -64,7 +64,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.pmi_px, args=(i,self.px))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Categories
@@ -73,7 +73,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.pcat, args=(i, self.cat))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize pmi_pxy_2
@@ -82,7 +82,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.pmi_pxy_2, args=(i,self.pxy))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize pmi
@@ -91,7 +91,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.pmi, args=(i,self.px,self.pxy,self.pmi_matrix))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize sort_pmi
@@ -100,7 +100,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.sort_pmi, args=(i,self.sort,self.pmi_matrix))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize pmi
@@ -109,7 +109,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.pmi, args=(i,self.px,self.pxy,self.pmi_matrix))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize b_pmi
@@ -118,7 +118,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.b_pmi, args=(i,self.b,self.px,self.pmi_matrix,self.sort,self.bpmi, self.cat))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize sort_bpmi
@@ -127,7 +127,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.sort_bpmi, args=(i,self.bsort,self.bpmi))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
         # Parallelize b_pmi
@@ -136,7 +136,7 @@ class SimilarityCalculator:
             my_procs[i] = multiprocessing.Process(target=self.b_pmi,args=(i, self.b, self.px, self.pmi_matrix, self.sort, self.bpmi, self.cat))
             my_procs[i].start()
             time.sleep(0.1)
-        for j in range(self.num_proc):
+        for i in range(self.num_proc):
             my_procs[i].join()
         print("DONE")
 
