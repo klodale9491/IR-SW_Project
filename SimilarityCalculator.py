@@ -6,6 +6,7 @@ import time
 
 from sklearn.decomposition import TruncatedSVD
 from scipy.spatial.distance import cosine as cosine_distance
+from sklearn.utils.extmath import randomized_svd
 from numpy import argsort
 from DBConnector import DBConnector
 
@@ -17,7 +18,7 @@ class SimilarityCalculator:
         self.calculate_matrix_sql()
         self.mem_alloc()
         self.par_ops()
-        self.show_results(self.bsort,self.bpmi)
+        #self.show_results(self.bsort,self.bpmi)
         #self.save_results_sql(self.bpmi)
         '''
         self.pmi_px()
@@ -275,6 +276,39 @@ class SimilarityCalculator:
         for i in range(start, len(self.npmi),self.num_proc):
             self.nsort[i] = argsort(self.npmi[i])[::-1]
 
+    '''
+        Calculate similarity between ingredients mapping them in space with less dimensions
+        using TSVD.
+    '''
+    def mat_sim(self,sqr_mat,mtype):
+        '''
+        :param sqr_mat: It can be "pxy"(cooccurrence_matrix),"pmi",bpmi
+        :param mtype: DataType of squared matrix
+        :return: Similarity matrix
+        '''
+        comps = 300
+        pmi_matrix = numpy.frombuffer(sqr_mat.get_obj(), mtype).reshape(self.num_ingr, self.num_ingr)
+        u, sigma, vt = randomized_svd(pmi_matrix,n_components=comps,n_iter=5, random_state=None)
+        for c in range(comps):
+            u[:,c] *= math.sqrt(sigma[c]) # multiply for the weight of sigma
+        mat_sim = numpy.zeros((self.num_ingr,self.num_ingr),numpy.float)
+        for i in range(self.num_ingr):
+            for j in range(i+1,self.num_ingr):
+                mat_sim[i][j] = cosine_distance(u[i,:],u[j,:])
+                mat_sim[j][i] = mat_sim[i][j]
+        return mat_sim
+
+    '''
+        Sorts matrix line by line
+    '''
+    def sort_mat_sim(self,mat_sim):
+        sort_pmi_sim = numpy.zeros((self.num_ingr,self.num_ingr),numpy.int64)
+        for i in range(self.num_ingr):
+            sort = numpy.argsort(-mat_sim[i])[::-1]
+            for j in range(len(sort)):
+                sort_pmi_sim[i][j] = sort[j]
+        return sort_pmi_sim
+
     # Calculate cosine distance truncating occurrence matrix using TSVD decomposition
     def cosine_distance(self, comp=None):
         print('cosine_distance')
@@ -286,7 +320,7 @@ class SimilarityCalculator:
         #self.svd = self.matrix
         for i in range(0,len(self.svd)):
             for j in range(i+1,len(self.svd)):
-                cosine = cosine_distance(self.svd[i],self.svd[j])
+                cosine = cosine(self.svd[i],self.svd[j])
                 self.cosine_matrix[i][j] = cosine
                 self.cosine_matrix[j][i] = cosine
         print("DONE")
@@ -333,6 +367,30 @@ class SimilarityCalculator:
                 crs.execute("select nome from ingredienti where id = %s",(int(bsort[i][j]+1),))
                 cnx.commit()
                 fout.write(str(j)+")"+str(crs.fetchone()[0])+"\t"+str(bpmi[i][best_sim[j]])+"\n")
+            fout.write("\n\n")
+        fout.close()
+        print("DONE")
+
+    # Save similarity ingredients results
+    def sav_sim_ing(self,fname,mat_sim,num_elm=10):
+        print("saving results...")
+        fout = open(fname, "w")
+        cnx = DBConnector().connect()
+        crs = cnx.cursor()
+        # mat_sim = numpy.frombuffer(mat_sim.get_obj(), numpy.float).reshape(self.num_ingr, self.num_ingr)
+        mat_sort = self.sort_mat_sim(mat_sim)
+        for i in range(self.num_ingr):
+            #Per ogni ingredediente prendo i 10 più simili
+            best_sim = mat_sort[i][0:num_elm]
+            crs.execute("select nome from ingredienti where id = %s",(i+1,))
+            cnx.commit()
+            nome_ing = crs.fetchone()[0]
+            fout.write("Ingrediente : " + str(nome_ing)+"\n")
+            # Preleviamo quelli più simili
+            for j in range(num_elm):
+                crs.execute("select nome from ingredienti where id = %s",(int(mat_sort[i][j]+1),))
+                cnx.commit()
+                fout.write(str(j)+")"+str(crs.fetchone()[0])+"\t"+str(mat_sim[i][best_sim[j]])+"\n")
             fout.write("\n\n")
         fout.close()
         print("DONE")
