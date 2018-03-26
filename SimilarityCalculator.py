@@ -16,12 +16,15 @@ class SimilarityCalculator:
         self.mem_alloc()
         self.occ_matrix_sql(self.matrix)
         self.par_ops()
+        # Save results of similarity using : occ_matrix
+        occ_sim = self.mat_sim(self.matrix, numpy.int32,self.num_ric,self.num_ingr)
+        self.sav_sim_ing('results/occ_sim.dat', occ_sim, 10)
         # Save results of similarity using : pmi,bpmi,pxy
-        pxy_sim = self.mat_sim(self.pxy, numpy.int32)
+        pxy_sim = self.mat_sim(self.pxy, numpy.int32,self.num_ingr,self.num_ingr)
         self.sav_sim_ing('results/pxy_sim.dat', pxy_sim, 10)
-        pmi_sim = self.mat_sim(self.pmi_matrix, numpy.float)
+        pmi_sim = self.mat_sim(self.pmi_matrix, numpy.float,self.num_ingr,self.num_ingr)
         self.sav_sim_ing('results/pmi_sim.dat', pmi_sim, 10)
-        bpmi_sim = self.mat_sim(self.bpmi, numpy.float)
+        bpmi_sim = self.mat_sim(self.bpmi, numpy.float,self.num_ingr,self.num_ingr)
         self.sav_sim_ing('results/bpmi_sim.dat', bpmi_sim, 10)
         '''
         self.pmi_px()
@@ -35,7 +38,6 @@ class SimilarityCalculator:
         '''
 
 
-    # Init variables
     def init_var(self):
         """
         Initializes main shared variables used by the program.
@@ -320,8 +322,27 @@ class SimilarityCalculator:
         for i in range(start, len(self.npmi),self.num_proc):
             self.nsort[i] = argsort(self.npmi[i])[::-1]
 
+    # Incomplete....
+    def unc_cff(self,unc_mat,pxy,occ):
+        """
+            Calculate uncertainty matrix for ingredients.
+        :return:
+        """
+        unc_mat = numpy.frombuffer(pxy.get_obj(), numpy.float).reshape(self.num_ingr, self.num_ingr)
+        pxy = numpy.frombuffer(pxy.get_obj(), numpy.int32).reshape(self.num_ingr, self.num_ingr)
+        cnt = pxy / self.num_ric # contingence/co-occurence matrix normalized
+        occ = numpy.frombuffer(occ.get_obj(), numpy.int32).reshape(self.num_ric, self.num_ingr).transpose() # ingredients X recipes
+        nrm_occ = numpy.array([occ[i]/math.fsum(occ[i]) for i in range(self.num_ric)]) # normalize occurences matrix
+        htp = numpy.zeros((1,self.num_ingr),numpy.float) # lut entropy vector
+        htp_xy = numpy.zeros((self.num_ingr,self.num_ingr),numpy.float)
+        for i in range(self.num_ingr):
+            htp[i] = -(math.fsum([nrm_occ[i][k] * math.log2(nrm_occ[i][k]) for k in range(len(nrm_occ[i]))]))
+        for x in range(0,self.num_ingr):
+            for y in range(x+1,self.num_ingr):
+                pass
 
-    def mat_sim(self,sqr_mat,mtype):
+
+    def mat_sim(self,sqr_mat,mtype,dim1,dim2):
         """
         Calculate similarity between ingredients mapping them in space with less dimensions
         using TSVD.
@@ -331,8 +352,13 @@ class SimilarityCalculator:
         :return: Similarity matrix
         """
         comps = 300
-        pmi_matrix = numpy.frombuffer(sqr_mat.get_obj(), mtype).reshape(self.num_ingr, self.num_ingr)
-        u, sigma, vt = randomized_svd(pmi_matrix,n_components=comps,n_iter=5, random_state=None)
+        # Using transpose to use rectangular matrix
+        matrix = numpy.frombuffer(sqr_mat.get_obj(), mtype).reshape(dim1, dim2)
+        if dim1 != dim2:
+            matrix = matrix.transpose()
+        print("matrix",matrix.shape)
+        u, sigma, vt = randomized_svd(matrix,n_components=comps,n_iter=5, random_state=None)
+        print("u",u.shape)
         for c in range(comps):
             u[:,c] *= math.sqrt(sigma[c]) # multiply for the weight of sigma
         mat_sim = numpy.zeros((self.num_ingr,self.num_ingr),numpy.float)
@@ -388,7 +414,7 @@ class SimilarityCalculator:
         Save similarity of ingredients results.
         :param fname: File where store data
         :param mat_sim: Square matrix(num_ingr X num_ingr) of "similarity"
-        :param num_elm: Nubver of elements to be shown for each ingredient
+        :param num_elm: Number of elements to be shown for each ingredient
         :return:
         """
         print("saving results...")
