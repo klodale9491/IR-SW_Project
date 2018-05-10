@@ -26,6 +26,8 @@ class SimilarityCalculator:
         self.sav_sim_ing('results/pmi_sim.dat', pmi_sim, 10)
         bpmi_sim = self.mat_sim(self.bpmi, numpy.float,self.num_ingr,self.num_ingr)
         self.sav_sim_ing('results/bpmi_sim.dat', bpmi_sim, 10)
+        nacuc_sim = self.svd_sqrt_cos(self.nacuc)
+        self.sav_sim_ing('results/nacuc_sim.dat', nacuc_sim, 10)
         '''
         self.pmi_px()
         self.pmi_pxy_2()
@@ -67,6 +69,7 @@ class SimilarityCalculator:
         self.bpmi = multiprocessing.Array("d",self.num_ingr*self.num_ingr)
         self.bsort = multiprocessing.Array("i",self.num_ingr*self.num_ingr)
         self.cat = multiprocessing.Array("d", self.num_ingr * self.num_cat)
+        self.nacuc = multiprocessing.Array("d", self.num_ingr * self.num_ingr)
         # Lut bpmi
         self.b = multiprocessing.Array("i",self.num_ingr)
         print("DONE")
@@ -437,3 +440,19 @@ class SimilarityCalculator:
             fout.write("\n\n")
         fout.close()
         print("DONE")
+
+    def svd_sqrt_cos(self, nacuc):
+            pxy = numpy.frombuffer(self.pxy.get_obj(), numpy.int32).reshape(self.num_ingr, self.num_ingr)
+            nacuc = numpy.frombuffer(nacuc.get_obj(), numpy.float).reshape(self.num_ingr, self.num_ingr)
+            s = math.sqrt(sum(sum(pow(pxy,2))))
+            nacuc = pxy / s
+            comps = 300
+            u, sigma, vt = randomized_svd(nacuc, n_components=comps, n_iter=5, random_state=None)
+            for c in range(comps):
+                u[:, c] *= math.sqrt(sigma[c])  # multiply for the weight of sigma
+            mat_sim = numpy.zeros((self.num_ingr, self.num_ingr), numpy.float)
+            for i in range(self.num_ingr):
+                for j in range(i + 1, self.num_ingr):
+                    mat_sim[i][j] = cosine_distance(u[i, :], u[j, :])
+                    mat_sim[j][i] = mat_sim[i][j]
+            return mat_sim
